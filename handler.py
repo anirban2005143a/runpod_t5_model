@@ -7,8 +7,8 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 # Load once when the worker starts (cold start)
 try:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    TOKENIZER = AutoTokenizer.from_pretrained("satviksh09/PnHLayman")
-    MODEL = AutoModelForSeq2SeqLM.from_pretrained("satviksh09/PnHLayman")
+    TOKENIZER = AutoTokenizer.from_pretrained("AnirbanDas2005/PnHLayman")
+    MODEL = AutoModelForSeq2SeqLM.from_pretrained("AnirbanDas2005/PnHLayman")
     MODEL.to(DEVICE)
     print(f"Model loaded successfully on device: {DEVICE}")
 except Exception as e:
