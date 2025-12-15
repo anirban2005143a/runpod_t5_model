@@ -3,18 +3,32 @@ import torch
 import json
 import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+# -------------------------------------------------
+# Hugging Face cache location (Runpod Cached Models)
+# -------------------------------------------------
+os.environ["HF_HOME"] = "/runpod-volume/huggingface-cache"
 
-# --- GLOBAL MODEL/TOKENIZER INITIALIZATION ---
-# Load once when the worker starts (cold start)
+MODEL_ID = "AnirbanDas2005/PnHLayman"
+
+# -------------------------------------------------
+# GLOBAL MODEL LOAD (COLD START ONLY)
+# -------------------------------------------------
 try:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    TOKENIZER = AutoTokenizer.from_pretrained("AnirbanDas2005/PnHLayman")
-    MODEL = AutoModelForSeq2SeqLM.from_pretrained("AnirbanDas2005/PnHLayman")
+
+    TOKENIZER = AutoTokenizer.from_pretrained(MODEL_ID)
+    MODEL = AutoModelForSeq2SeqLM.from_pretrained(MODEL_ID)
+
     MODEL.to(DEVICE)
-    print(f"Model loaded successfully on device: {DEVICE}")
+    MODEL.eval()
+
+    print(f"✅ Model loaded on {DEVICE}")
+
 except Exception as e:
-    print(f"Error loading model: {e}")
-    TOKENIZER, MODEL, DEVICE = None, None, "cpu"
+    print(f"❌ Model load failed: {e}")
+    TOKENIZER = None
+    MODEL = None
+    DEVICE = "cpu"
 
 
 # --- MODEL LOGIC FUNCTIONS ---
