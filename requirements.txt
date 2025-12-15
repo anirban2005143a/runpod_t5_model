@@ -6,4 +6,5 @@ fastapi
 uvicorn
 sentencepiece
 langchain
+langchain-text-splitters
 pydantic
