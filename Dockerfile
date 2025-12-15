@@ -1,36 +1,31 @@
-# 1. BASE IMAGE: Use a Python/CUDA runtime image from NVIDIA or PyTorch.
-#    The runtime image is smaller than the devel (development) image.
-#    We use a PyTorch-provided image as it guarantees PyTorch is compatible 
-#    with the included CUDA/cuDNN versions. Adjust the tag for your needs.
-FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+# Use a base image with Python and CUDA support (if using GPU)
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 
-# 2. METADATA: Set environment variable for the port your application will listen on
-#    (FastAPI/Uvicorn default is often 8000). The serverless platform needs this.
-ENV PORT 8000
-EXPOSE 8000
+# Install Python and essential packages
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# 3. SETUP: Set the working directory inside the container
+# Set the working directory
 WORKDIR /app
 
-# 4. DEPENDENCIES: Copy requirements.txt first to leverage Docker layer caching.
-#    If requirements.txt doesn't change, Docker won't rerun this time-consuming step.
+# Copy requirements file first to leverage Docker cache
 COPY requirements.txt .
 
-# 5. INSTALL: Install Python dependencies. 
-#    --no-cache-dir saves space. -r installs everything from the list.
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# 6. APPLICATION CODE: Copy the rest of your local repository files into the container.
-#    This includes app.py, your custom chunking modules, configs, etc.
-COPY . .
+# Copy the rest of the application code
+COPY handler.py .
+# Note: You don't need to copy the Judgments/Summaries directories for the API endpoint
 
-# 7. MODEL LOADING (Optional but recommended for faster cold starts):
-#    If your model is small or you have access to a persistent cache/volume,
-#    pre-downloading it here can reduce cold start latency significantly.
-#    Example: RUN python -c "from transformers import AutoModel, AutoTokenizer; AutoModel.from_pretrained('your-llm-model-name'); AutoTokenizer.from_pretrained('your-llm-model-name')"
-
-# 8. STARTUP COMMAND: Run your API server.
-#    - Uvicorn is a common ASGI server for high-performance Python APIs (FastAPI).
-#    - `app.py` is your main script, and `app` is the FastAPI application object inside it.
-#    - Bind to 0.0.0.0 for external access (required by serverless platforms).
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# RunPod expects a command to start the worker. 
+# The base RunPod Serverless template uses a handler script.
+# We'll use the official RunPod worker base for simplicity in a real setup, 
+# but for a custom script, you'd typically run it like this:
+# CMD ["python3", "handler.py"] 
+# However, for a RunPod worker, the entrypoint is usually defined by the 
+# worker environment. For this example, we'll assume a standard RunPod worker setup 
+# where 'handler.py' is the entrypoint.
