@@ -8,3 +8,4 @@ sentencepiece
 langchain
 langchain-text-splitters
 pydantic
+protobuf
