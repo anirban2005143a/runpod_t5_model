@@ -20,12 +20,6 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY handler.py .
 # Note: You don't need to copy the Judgments/Summaries directories for the API endpoint
+# Command to run when the container starts
+CMD ["python3", "-u", "handler.py"]
 
-# RunPod expects a command to start the worker. 
-# The base RunPod Serverless template uses a handler script.
-# We'll use the official RunPod worker base for simplicity in a real setup, 
-# but for a custom script, you'd typically run it like this:
-# CMD ["python3", "handler.py"] 
-# However, for a RunPod worker, the entrypoint is usually defined by the 
-# worker environment. For this example, we'll assume a standard RunPod worker setup 
-# where 'handler.py' is the entrypoint.
