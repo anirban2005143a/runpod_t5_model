@@ -1,6 +1,7 @@
 import os
 import torch
 import json
+import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 # --- GLOBAL MODEL/TOKENIZER INITIALIZATION ---
@@ -113,3 +114,6 @@ def handler(job):
     except Exception as e:
         print(f"Error during summary generation: {e}")
         return {"error": f"An error occurred during processing: {str(e)}"}
+
+
+runpod.serverless.start({ "handler" : handler })
