@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from typing import List
 
 # ----------------------------------------------------
@@ -131,4 +131,5 @@ def process_text(query: Query):
         all_summaries.append(summary)
 
     # 3. Concatenate and return the final summary (Reduce step)
+
     return {"summary": " ".join(all_summaries), "chunk_count": len(chunks)}
