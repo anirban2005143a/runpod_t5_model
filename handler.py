@@ -4,10 +4,12 @@ import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import nltk
-from nltk.tokenize import sent_tokenize
 
-# Make sure NLTK sentence tokenizer models are downloaded
-nltk.download('punkt')
+# Download punkt for sentence tokenization (serverless-safe)
+nltk.download('punkt', download_dir='/tmp/nltk_data')
+nltk.data.path.append('/tmp/nltk_data')
+
+from nltk.tokenize import sent_tokenize
 
 
 # -------------------------------------------------
