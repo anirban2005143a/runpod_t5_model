@@ -136,7 +136,6 @@ def generate_summary(model, tokenizer, text, device, params):
                 eos_token_id=tokenizer.eos_token_id,
                 no_repeat_ngram_size=params["no_repeat_ngram_size"],
                 length_penalty=params["length_penalty"],
-                no_repeat_ngram_size=3,
                 do_sample=False,
             )
 
