@@ -3,13 +3,6 @@ import torch
 import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-import nltk
-
-# Download punkt for sentence tokenization (serverless-safe)
-nltk.download('punkt', download_dir='/tmp/nltk_data')
-nltk.data.path.append('/tmp/nltk_data')
-
-from nltk.tokenize import sent_tokenize
 
 
 # -------------------------------------------------
@@ -85,6 +78,17 @@ def chunk_text(text, tokenizer, max_tokens=900, overlap_tokens=50):
 
 
 # -------------------------------------------------
+# TRIM TO LAFT FULLSTOP
+# -------------------------------------------------
+def trim_to_last_fullstop(text: str) -> str:
+    """Trim text to the last full stop (.) if it exists."""
+    last_dot_index = text.rfind(".")
+    if last_dot_index != -1:
+        return text[:last_dot_index + 1]
+    return text
+
+
+# -------------------------------------------------
 # SUMMARY GENERATION
 # -------------------------------------------------
 def generate_summary(model, tokenizer, text, device, params):
@@ -132,23 +136,17 @@ def generate_summary(model, tokenizer, text, device, params):
                 eos_token_id=tokenizer.eos_token_id,
                 no_repeat_ngram_size=params["no_repeat_ngram_size"],
                 length_penalty=params["length_penalty"]
-                # no_repeat_ngram_size=3,
-                # do_sample=False,
+                no_repeat_ngram_size=3,
+                do_sample=False,
             )
 
-        # Decode and trim to the last complete sentence
         summary = tokenizer.decode(output_ids[0], skip_special_tokens=True).strip()
-        # Use NLTK to split into sentences
-        sentences = sent_tokenize(summary)
-        if sentences:
-            # Take all sentences except possibly incomplete last one
-            summary = " ".join(sentences[:-1]) if len(sentences) > 1 else sentences[0]
-
-        # Append cleaned summary
+        summary = trim_to_last_fullstop(summary)
         summaries.append(summary)
 
-    # Join all chunk summaries
-    return "\n\n---\n\n".join(summaries)
+    # Merge summaries
+    final_summary = " ".join(summaries)
+    return {"generated_text": final_summary}
 
 
 
