@@ -3,34 +3,74 @@ import torch
 import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
+from huggingface_hub import snapshot_download
+from huggingface_hub.utils import HFValidationError
 
 # -------------------------------------------------
-# Hugging Face cache location
+# CONFIG
 # -------------------------------------------------
-os.environ["HF_HOME"] = "/runpod-volume/huggingface-cache"
-
 MODEL_ID = "AnirbanDas2005/PnHLayman"
+CACHE_DIR = "/runpod-volume/huggingface-cache"
+
+os.environ["HF_HOME"] = CACHE_DIR
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -------------------------------------------------
-# GLOBAL MODEL LOAD
+# LOAD MODEL WITH CACHE CHECK + LOGGING
 # -------------------------------------------------
-try:
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+def load_model_with_cache():
+    try:
+        print("🔍 Checking Hugging Face cache...")
 
-    TOKENIZER = AutoTokenizer.from_pretrained(MODEL_ID)
-    MODEL = AutoModelForSeq2SeqLM.from_pretrained(MODEL_ID)
+        try:
+            # Check if model exists locally (no download)
+            snapshot_path = snapshot_download(
+                repo_id=MODEL_ID,
+                cache_dir=CACHE_DIR,
+                local_files_only=True
+            )
+            print(f"✅ Using cached model at: {snapshot_path}")
 
-    MODEL.to(DEVICE)
-    MODEL.eval()
+        except (FileNotFoundError, HFValidationError):
+            print("⬇️ Model not found in cache. Downloading now...")
 
-    print(f"✅ Model loaded on {DEVICE}")
+            snapshot_path = snapshot_download(
+                repo_id=MODEL_ID,
+                cache_dir=CACHE_DIR,
+                local_files_only=False
+            )
 
-except Exception as e:
-    print(f"❌ Model load failed: {e}")
-    MODEL = None
-    TOKENIZER = None
-    DEVICE = "cpu"
+            print(f"✅ Model downloaded and cached at: {snapshot_path}")
+
+        print("🚀 Loading tokenizer...")
+        tokenizer = AutoTokenizer.from_pretrained(
+            snapshot_path,
+            cache_dir=CACHE_DIR
+        )
+
+        print("🚀 Loading model...")
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            snapshot_path,
+            cache_dir=CACHE_DIR,
+            torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32
+        )
+
+        model.to(DEVICE)
+        model.eval()
+
+        print(f"🎯 Model ready on {DEVICE}")
+        return model, tokenizer
+
+    except Exception as e:
+        print(f"❌ Model load failed: {e}")
+        raise
+
+
+# -------------------------------------------------
+# GLOBAL LOAD (WORKER START)
+# -------------------------------------------------
+MODEL, TOKENIZER = load_model_with_cache()
 
 
 # -------------------------------------------------
