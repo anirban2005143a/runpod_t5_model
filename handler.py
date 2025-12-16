@@ -2,6 +2,7 @@ import os
 import torch
 import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # -------------------------------------------------
 # Hugging Face cache location
@@ -32,16 +33,45 @@ except Exception as e:
 
 
 # -------------------------------------------------
-# TOKEN-BASED CHUNKING
+# LANGCHAIN CHUNKING (RecursiveCharacterTextSplitter)
 # -------------------------------------------------
-def chunk_text_tokenwise(text, tokenizer, max_tokens=900):
-    tokens = tokenizer.encode(text)
-    chunks = []
+def chunk_text(text, tokenizer, max_tokens=900, overlap_tokens=50):
+    """
+    Chunks text using LangChain's RecursiveCharacterTextSplitter,
+    configured to respect legal document structure (paragraphs, sentences)
+    and use the HuggingFace tokenizer's length function for accurate token counting.
+    """
+    
+    # 1. Define the separators for legal documents: try to split by paragraph, then newline, then sentence.
+    # We use a hierarchical approach, favoring larger chunks first.
+    separators = [
+        "\n\n",   # Double newline (paragraph/section break)
+        "\n",     # Single newline
+        ". ",     # Sentence end
+        # " ",      # Whitespace (last resort)
+    ]
 
-    for i in range(0, len(tokens), max_tokens):
-        chunk_tokens = tokens[i:i + max_tokens]
-        chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True)
-        chunks.append(chunk_text)
+    # 2. Define a function to calculate chunk length in tokens (using the actual model tokenizer)
+    def token_length_function(chunk):
+        return len(tokenizer.encode(chunk))
+
+    # 3. Instantiate the RecursiveCharacterTextSplitter
+    text_splitter = RecursiveCharacterTextSplitter(
+        separators=separators,
+        chunk_size=max_tokens,
+        chunk_overlap=overlap_tokens,
+        length_function=token_length_function, # Use the token-based length function
+        is_separator_regex=False,
+    )
+
+    # 4. Split the text
+    chunks = text_splitter.split_text(text)
+    
+    # Optional check to ensure all chunks respect the max_tokens limit
+    # (The splitter handles this internally, but it's good practice for debugging)
+    # for i, chunk in enumerate(chunks):
+    #     if token_length_function(chunk) > max_tokens:
+    #         print(f"Warning: Chunk {i} size ({token_length_function(chunk)}) exceeds max_tokens.")
 
     return chunks
 
@@ -53,21 +83,28 @@ def generate_summary(model, tokenizer, text, device, params):
     if not model or not tokenizer:
         return "Model not initialized."
 
-    chunks = chunk_text_tokenwise(
+    # Use the new LangChain chunking function
+    chunks = chunk_text(
         text,
         tokenizer,
-        max_tokens=params["chunk_tokens"]
+        max_tokens=params["chunk_tokens"],
+        overlap_tokens=params.get("chunk_overlap", 50) 
     )
 
     summaries = []
 
     for chunk in chunks:
-        # Factual & legal-focused prompt
+        # **ENHANCED PROMPT (Same as previous, highly structured)**
         prompt = (
-            "Summarize the following legal judgment clearly and accurately. "
-            "Focus only on the facts, charges, evidence, arguments, and the court's final decision. "
-            "Do NOT add any assumptions, opinions, interpretations, or extra commentary. "
-            "Preserve all key details such as dates, parties involved, sections of law, and outcomes.\n\n"
+            "You are an expert legal paralegal. Your task is to extract a highly structured, "
+            "objective, and accurate summary of the following legal text chunk. "
+            "Strictly adhere to this format:\n\n"
+            "**1. Case/Parties:** [Identify the main parties involved and the type of document/case.]\n"
+            "**2. Key Facts:** [List the most critical, verified facts that led to the legal dispute (who, what, when, where).]\n"
+            "**3. Charges/Laws:** [State the specific legal sections or acts cited.]\n"
+            "**4. Court's Decision:** [State the final, binding outcome of this chunk (e.g., Granted/Dismissed, Sentenced, etc.).]\n"
+            "**5. Reasoning (If present):** [Briefly state the core legal principle or evidence that drove the court's decision.]\n\n"
+            "TEXT CHUNK TO SUMMARIZE:\n"
             f"{chunk}"
         )
 
@@ -75,8 +112,8 @@ def generate_summary(model, tokenizer, text, device, params):
         inputs = tokenizer(
             prompt,
             return_tensors="pt",
-            truncation=True,
-            max_length=1024
+            truncation=True, 
+            max_length=1024 # Model max input length
         ).to(device)
 
         with torch.no_grad():
@@ -95,7 +132,8 @@ def generate_summary(model, tokenizer, text, device, params):
         summary = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         summaries.append(summary)
 
-    return "\n\n".join(summaries)
+    # Note: For multi-chunk legal text, a final "refine" step might be needed to merge summaries.
+    return "\n\n---\n\n".join(summaries)
 
 
 # -------------------------------------------------
@@ -124,7 +162,8 @@ def handler(job):
         "no_repeat_ngram_size": job_input.get("no_repeat_ngram_size", 3),
         "length_penalty": job_input.get("length_penalty", 0.8),
         "chunk_tokens": job_input.get("chunk_tokens", 900),
-        "attention_mask": job_input.get("attention_mask", None)
+        # New parameter for chunk overlap
+        "chunk_overlap": job_input.get("chunk_overlap", 50) 
     }
 
     try:
