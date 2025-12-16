@@ -94,7 +94,7 @@ def generate_summary(model, tokenizer, text, device, params):
     summaries = []
 
     for chunk in chunks:
-        # **ENHANCED PROMPT (Same as previous, highly structured)**
+        # **ENHANCED PROMPT**
         prompt = (
             "Summarize the following portion of a legal judgment in clear, factual language. "
             "Focus only on: facts of the case, parties involved, dates and timeline of events, "
@@ -103,14 +103,7 @@ def generate_summary(model, tokenizer, text, device, params):
             f"{chunk}"
         )
 
-        # inputs = tokenizer(
-        #     prompt,
-        #     return_tensors="pt",
-        #     truncation=True, 
-        #     max_length=1024 # Model max input length
-        # ).to(device)
-
-        # Move inputs to device properly
+        # Tokenize and move inputs to device
         inputs = tokenizer(
             prompt,
             return_tensors="pt",
@@ -119,7 +112,7 @@ def generate_summary(model, tokenizer, text, device, params):
         )
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
-
+        # Generate summary
         with torch.no_grad():
             output_ids = model.generate(
                 inputs['input_ids'],
@@ -133,11 +126,17 @@ def generate_summary(model, tokenizer, text, device, params):
                 length_penalty=params["length_penalty"]
             )
 
-        summary = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        # Decode and trim to last full stop
+        summary = tokenizer.decode(output_ids[0], skip_special_tokens=True).strip()
+        last_full_stop_idx = summary.rfind(".")
+        if last_full_stop_idx != -1:
+            summary = summary[:last_full_stop_idx + 1]  # Include the full stop
+        # Append cleaned summary
         summaries.append(summary)
 
-    # Note: For multi-chunk legal text, a final "refine" step might be needed to merge summaries.
+    # Join all chunk summaries
     return "\n\n---\n\n".join(summaries)
+
 
 
 # -------------------------------------------------
