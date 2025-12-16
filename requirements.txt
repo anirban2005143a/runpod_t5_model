@@ -10,3 +10,4 @@ langchain-text-splitters
 pydantic
 protobuf
 runpod
+nltk
