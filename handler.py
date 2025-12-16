@@ -97,18 +97,28 @@ def generate_summary(model, tokenizer, text, device, params):
         # **ENHANCED PROMPT (Same as previous, highly structured)**
         prompt = (
             "Summarize the following portion of a legal judgment in clear, factual language. "
-            "Focus only on the following key areas: facts of the case, parties involved, dates and timeline of events, "
+            "Focus only on: facts of the case, parties involved, dates and timeline of events, "
             "charges, evidence presented, arguments of prosecution and defense, and the court's findings or decisions. "
             "Do NOT add assumptions, opinions, or commentary. Preserve all important factual details and legal references.\n\n"
             f"{chunk}"
         )
 
+        # inputs = tokenizer(
+        #     prompt,
+        #     return_tensors="pt",
+        #     truncation=True, 
+        #     max_length=1024 # Model max input length
+        # ).to(device)
+
+        # Move inputs to device properly
         inputs = tokenizer(
             prompt,
             return_tensors="pt",
-            truncation=True, 
-            max_length=1024 # Model max input length
-        ).to(device)
+            truncation=True,
+            max_length=1024
+        )
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
 
         with torch.no_grad():
             output_ids = model.generate(
