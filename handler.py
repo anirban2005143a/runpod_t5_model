@@ -3,6 +3,12 @@ import torch
 import runpod
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import nltk
+from nltk.tokenize import sent_tokenize
+
+# Make sure NLTK sentence tokenizer models are downloaded
+nltk.download('punkt')
+
 
 # -------------------------------------------------
 # Hugging Face cache location
@@ -95,17 +101,17 @@ def generate_summary(model, tokenizer, text, device, params):
 
     for chunk in chunks:
         # **ENHANCED PROMPT**
-        prompt = (
-            "Summarize the following portion of a legal judgment in clear, factual language. "
-            "Focus only on: facts of the case, parties involved, dates and timeline of events, "
-            "charges, evidence presented, arguments of prosecution and defense, and the court's findings or decisions. "
-            "Do NOT add assumptions, opinions, or commentary. Preserve all important factual details and legal references.\n\n"
-            f"{chunk}"
-        )
+        # prompt = (
+        #     "Summarize the following portion of a legal judgment in clear, factual language. "
+        #     "Focus only on: facts of the case, parties involved, dates and timeline of events, "
+        #     "charges, evidence presented, arguments of prosecution and defense, and the court's findings or decisions. "
+        #     "Do NOT add assumptions, opinions, or commentary. Preserve all important factual details and legal references.\n\n"
+        #     f"{chunk}"
+        # )
 
         # Tokenize and move inputs to device
         inputs = tokenizer(
-            prompt,
+            chunk,
             return_tensors="pt",
             truncation=True,
             max_length=1024
@@ -124,13 +130,18 @@ def generate_summary(model, tokenizer, text, device, params):
                 eos_token_id=tokenizer.eos_token_id,
                 no_repeat_ngram_size=params["no_repeat_ngram_size"],
                 length_penalty=params["length_penalty"]
+                # no_repeat_ngram_size=3,
+                # do_sample=False,
             )
 
-        # Decode and trim to last full stop
+        # Decode and trim to the last complete sentence
         summary = tokenizer.decode(output_ids[0], skip_special_tokens=True).strip()
-        last_full_stop_idx = summary.rfind(".")
-        if last_full_stop_idx != -1:
-            summary = summary[:last_full_stop_idx + 1]  # Include the full stop
+        # Use NLTK to split into sentences
+        sentences = sent_tokenize(summary)
+        if sentences:
+            # Take all sentences except possibly incomplete last one
+            summary = " ".join(sentences[:-1]) if len(sentences) > 1 else sentences[0]
+
         # Append cleaned summary
         summaries.append(summary)
 
