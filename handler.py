@@ -96,18 +96,12 @@ def generate_summary(model, tokenizer, text, device, params):
     for chunk in chunks:
         # **ENHANCED PROMPT (Same as previous, highly structured)**
         prompt = (
-            "You are an expert legal paralegal. Your task is to extract a highly structured, "
-            "objective, and accurate summary of the following legal text chunk. "
-            "Strictly adhere to this format:\n\n"
-            "**1. Case/Parties:** [Identify the main parties involved and the type of document/case.]\n"
-            "**2. Key Facts:** [List the most critical, verified facts that led to the legal dispute (who, what, when, where).]\n"
-            "**3. Charges/Laws:** [State the specific legal sections or acts cited.]\n"
-            "**4. Court's Decision:** [State the final, binding outcome of this chunk (e.g., Granted/Dismissed, Sentenced, etc.).]\n"
-            "**5. Reasoning (If present):** [Briefly state the core legal principle or evidence that drove the court's decision.]\n\n"
-            "TEXT CHUNK TO SUMMARIZE:\n"
+            "Summarize the following portion of a legal judgment in clear, factual language. "
+            "Focus only on the following key areas: facts of the case, parties involved, dates and timeline of events, "
+            "charges, evidence presented, arguments of prosecution and defense, and the court's findings or decisions. "
+            "Do NOT add assumptions, opinions, or commentary. Preserve all important factual details and legal references.\n\n"
             f"{chunk}"
         )
-
 
         inputs = tokenizer(
             prompt,
